@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <title>Mensagens em tempo real</title>
+  <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+</head>
+<body>
+  <h2>Escolha o ambiente:</h2>
+  <select id="ambiente">
+    <option value="maxxtrack">Maxxtrack</option>
+    <option value="homologacao">Homologação</option>
+    <option value="local">Local</option>
+  </select>
+  <button onclick="conectar()">Conectar</button>
+
+  <h3 id="conectado">Não Conectado</h3>
+
+  <h3>Mensagens recebidas:</h3>
+  <ul id="mensagens"></ul>
+
+  <script>
+    const socket = io();
+
+    function conectar() {
+      const ambiente = document.getElementById('ambiente').value;
+      const conn_status = socket.emit('selecionar_ambiente', { ambiente });
+      document.getElementById('conectado').innerText = `Conexão ao ambiente: ${ambiente}` + (conn_status ? ' Ok' : ' (Erro ao conectar)')  ;
+    }
+
+    socket.on('nova_mensagem', function(msg) {
+      date_time = new Date().toLocaleString();
+      msg = `[${date_time}] ${msg}`;
+      const ul = document.getElementById('mensagens');
+      const li = document.createElement('li');
+      li.textContent = msg;
+      ul.appendChild(li);
+    });
+  </script>
+</body>
+</html>

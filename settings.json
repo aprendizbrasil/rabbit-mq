@@ -1,0 +1,17 @@
+{
+    "maxxtrack": {
+        "SERVER_ADDRESS": "amqp.denox.com.br",
+        "SERVER_PORT": 5672,
+        "QUEUE_NAME": "externo_segmob_conexao_rastreadores"
+    },
+    "homologacao": {
+        "SERVER_ADDRESS": "3.214.5.32",
+        "SERVER_PORT": 5672,
+        "QUEUE_NAME": "homologa"
+    },
+    "local": {
+        "SERVER_ADDRESS": "localhost",
+        "SERVER_PORT": 5672,
+        "QUEUE_NAME": "local"
+    }
+}
