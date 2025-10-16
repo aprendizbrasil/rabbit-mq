@@ -12,6 +12,7 @@
     <option value="homologacao">Homologação</option>
     <option value="local">Local</option>
   </select>
+  <input type="hidden" id="amb">
   <button onclick="conectar()">Conectar</button>
 
   <h3 id="conectado">Não Conectado</h3>
@@ -24,13 +25,15 @@
 
     function conectar() {
       const ambiente = document.getElementById('ambiente').value;
-      const conn_status = socket.emit('selecionar_ambiente', { ambiente });
-      document.getElementById('conectado').innerText = `Conexão ao ambiente: ${ambiente}` + (conn_status ? ' Ok' : ' (Erro ao conectar)')  ;
+      const conn_status = socket.emit('selecionar_ambiente', { ambiente: ambiente });
+      document.getElementById('conectado').innerText = `Conexão ao ambiente ${ambiente}` + (conn_status ? ' Ok' : ' (Erro ao conectar)')  ;
+      document.getElementById('amb').value = ambiente;
     }
 
     socket.on('nova_mensagem', function(msg) {
       date_time = new Date().toLocaleString();
-      msg = `[${date_time}] ${msg}`;
+      amb = document.getElementById('amb').value;
+      msg = `[${date_time}] [${amb}] ${msg}`;
       const ul = document.getElementById('mensagens');
       const li = document.createElement('li');
       li.textContent = msg;

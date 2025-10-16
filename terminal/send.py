@@ -100,7 +100,7 @@ def main():
                                 delivery_mode=2,  # Persiste a mensagem na fila
                             ))
             
-        print(" [x] Sent 'Hello World!'")
+        print(f" [x] Sent '{msg}'")
         msg = input("Digite uma nova mensagem ou 'Enter' para sair... ")
 
     connection.close()
