@@ -1,12 +1,15 @@
 # app.py
+import eventlet
+eventlet.monkey_patch()  # Deixa o Flask-SocketIO funcionar bem com threads
+
 from flask import Flask, render_template, request
 from flask_socketio import SocketIO
 import pika
 import threading
 import json
-import eventlet
 
-eventlet.monkey_patch()  # Deixa o Flask-SocketIO funcionar bem com threads
+
+
 
 app = Flask(__name__)
 socketio = SocketIO(app, async_mode="eventlet")
