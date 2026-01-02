@@ -1,5 +1,6 @@
 # My Ignore file for Python projects
 .credentials.json
+settings.json
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

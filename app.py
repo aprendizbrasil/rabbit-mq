@@ -62,4 +62,5 @@ def handle_ambiente(data):
     threading.Thread(target=start_rabbitmq_listener, args=(env_name,), daemon=True).start()
 
 if __name__ == '__main__':
-    socketio.run(app, debug=True)
+    socketio.run(app, host="127.0.0.1", port=5000, debug=True)
+    #socketio.run(app, debug=True)
