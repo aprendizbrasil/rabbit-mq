@@ -1,8 +1,14 @@
 # terminal/send.py
 
+import os
 import pika
 import json
 import sys
+
+# Obtém a pasta raiz do projeto de forma dinâmica
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+settings_path = os.path.join(BASE_DIR, 'settings.json')
+credentials_path = os.path.join(BASE_DIR, '.credentials.json')
 
 # --- CARREGAR CONFIGURAÇÕES ---
 def load_config():
@@ -10,16 +16,17 @@ def load_config():
     Carrega configurações e credenciais.
     """
     try:
-        with open('../settings.json', 'r') as f:
+        with open(settings_path, 'r') as f:
             settings = json.load(f)
-        with open('../.credentials.json', 'r') as f:
+        with open(credentials_path, 'r') as f:
             credentials = json.load(f)
 
         # Mapeia opções numéricas para nomes de ambiente
         env_map = {
             "1": "maxxtrack",
             "2": "homologacao",
-            "3": "local"
+            "3": "local",
+            "4": "satcom"
         }
 
         print("Escolha o ambiente de conexão:")
@@ -30,15 +37,17 @@ def load_config():
             sys.exit(1) 
         
         env_name = env_map[env_choice]
-        settings = settings[env_name]
-        credentials = credentials[env_name] 
         print(f"Ambiente: {env_name}")
-
-        # Remove "https://" se existir 
-        settings['SERVER_ADDRESS'] = settings['SERVER_ADDRESS'].replace('https://', '').replace('http://', '')
-            
-        # Combina as info em um só 'config'
-        config = {**settings, **credentials}
+        
+        # Se for Satcom, carrega a URL completa; caso contrário, carrega settings e credentials
+        if env_name == "satcom":
+            config = settings[env_name]
+            # As credenciais já estão embutidas na URL, não precisamos carregá-las separadamente aqui
+        else:
+            settings_env = settings[env_name]
+            credentials_env = credentials[env_name] 
+            settings_env['SERVER_ADDRESS'] = settings_env['SERVER_ADDRESS'].replace('https://', '').replace('http://', '')
+            config = {**settings_env, **credentials_env}
         return config
     
         # Trata erros comuns
@@ -62,20 +71,27 @@ def main():
     config = load_config()
 
     # Carrega os parâmetros de conexão
-    host = config['SERVER_ADDRESS']
-    port = config['SERVER_PORT']
-    user = config['USER']
-    password = config['PASSWORD']
-    queue = config['QUEUE_NAME']
-    print(f"Conectando a {host}:{port}, fila: {queue}, user: {user}, password: {password}")
+    if config.get("SSL") and config.get("URL"):
+        parameters = pika.URLParameters(config['URL'])
+        queue = config['QUEUE_NAME']
+        print(f"Conectando via URL: {config['URL']}, fila: {queue}")
+    else:
+        host = config['SERVER_ADDRESS']
+        port = config['SERVER_PORT']
+        user = config['USER']
+        password = config['PASSWORD']
+        queue = config['QUEUE_NAME']
+        vhost = config.get('VHOST', '/') # Adicionado vhost, padrão '/'
 
-    credentials = pika.PlainCredentials(user, password)
-    parameters = pika.ConnectionParameters(
-        host=host,
-        port=port,
-        virtual_host='/',
-        credentials=credentials
-    )
+        print(f"Conectando a {host}:{port}, vhost: {vhost}, fila: {queue}, user: {user}")
+
+        credentials = pika.PlainCredentials(user, password)
+        parameters = pika.ConnectionParameters(
+            host=host,
+            port=port,
+            virtual_host=vhost,
+            credentials=credentials
+        )
 
     connection = pika.BlockingConnection(parameters)
     channel = connection.channel()

@@ -2,7 +2,7 @@
     "maxxtrack": {
         "SERVER_ADDRESS": "amqp.denox.com.br",
         "SERVER_PORT": 5672,
-        "QUEUE_NAME": "externo_segmob_conexao_rastreadores"
+        "QUEUE_NAME": "externo_segmobdobrasil_conexao_rastreadores"
     },
     "homologacao": {
         "SERVER_ADDRESS": "3.214.5.32",
@@ -13,5 +13,13 @@
         "SERVER_ADDRESS": "localhost",
         "SERVER_PORT": 5672,
         "QUEUE_NAME": "local"
+    },
+    "satcom": {
+        "SERVER_ADDRESS": "rabbitmq-integracao.kezposolutions.com",
+        "SERVER_PORT": 5671,
+        "VHOST": "satcom",
+        "SSL": true,
+        "QUEUE_NAME": "satcom_positions",
+        "URL": "amqps://user-satcom:i41uJp1eI84wtFFFab0h5aWSLqFK@rabbitmq-integracao.kezposolutions.com:5671/satcom"
     }
 }

@@ -1,7 +1,13 @@
+import os
 import pika
 import json
 from datetime import datetime
 import sys 
+
+# Obtém a pasta raiz do projeto de forma dinâmica
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+settings_path = os.path.join(BASE_DIR, 'settings.json')
+credentials_path = os.path.join(BASE_DIR, '.credentials.json')
 
 # --- CARREGAR CONFIGURAÇÕES ---
 def load_config():
@@ -9,16 +15,17 @@ def load_config():
     Carrega configurações e credenciais.
     """
     try:
-        with open('../settings.json', 'r') as f:
+        with open(settings_path, 'r') as f:
             settings = json.load(f)
-        with open('../.credentials.json', 'r') as f:
+        with open(credentials_path, 'r') as f:
             credentials = json.load(f)
 
         # Mapeia opções numéricas para nomes de ambiente
         env_map = {
             "1": "maxxtrack",
             "2": "homologacao",
-            "3": "local"
+            "3": "local",
+            "4": "satcom"
         }
 
         print("Escolha o ambiente de conexão:")
@@ -29,14 +36,23 @@ def load_config():
             sys.exit(1) 
         
         env_name = env_map[env_choice]
-        settings = settings[env_name]
-        credentials = credentials[env_name] 
+        
+        # Se for Satcom, carrega a URL completa; caso contrário, carrega settings e credentials
+        if env_name == "satcom":
+            # A URL completa já inclui user, password, host, port e vhost
+            config = settings[env_name]
+            config["ENV_NAME"] = env_name # Adiciona o nome do ambiente para o consumidor
+        else:
+            settings_env = settings[env_name]
+            credentials_env = credentials[env_name] 
+            print(f"Ambiente: {env_name}")
 
-        # Remove "https://" se existir 
-        settings['SERVER_ADDRESS'] = settings['SERVER_ADDRESS'].replace('https://', '').replace('http://', '')
-            
-        # Combina as info em um só 'config'
-        config = {**settings, **credentials}
+            # Remove "https://" se existir 
+            settings_env['SERVER_ADDRESS'] = settings_env['SERVER_ADDRESS'].replace('https://', '').replace('http://', '')
+                
+            # Combina as info em um só 'config'
+            config = {**settings_env, **credentials_env}
+            config["ENV_NAME"] = env_name # Adiciona o nome do ambiente para o consumidor
         return config
     
     # Trata erros comuns
@@ -54,15 +70,25 @@ def load_config():
 
 class RabbitMQConsumer:
     """
-    Classe para consumir mensagens de uma fila RabbitMQ da Maxtrack.
+    Classe para consumir mensagens de uma fila RabbitMQ.
     """
-    def __init__(self, host, port, user, password, queue):
-        self.credentials = pika.PlainCredentials(user, password)
-        self.parameters = pika.ConnectionParameters(host=host, port=port, credentials=self.credentials)
-        self.queue_name = queue
+    def __init__(self, config):
+        self.queue_name = config['QUEUE_NAME']
         self.connection = None
         self.channel = None
-        
+        self.env_name = config.get("ENV_NAME", "unknown") # Para uso no callback
+
+        if self.env_name == "satcom":
+            self.parameters = pika.URLParameters(config['URL'])
+        else:
+            self.credentials = pika.PlainCredentials(config['USER'], config['PASSWORD'])
+            self.parameters = pika.ConnectionParameters(
+                host=config['SERVER_ADDRESS'],
+                port=config['SERVER_PORT'],
+                virtual_host=config.get('VHOST', '/'),
+                credentials=self.credentials
+            )
+
 
     def _callback(self, ch, method, properties, body):
         """
@@ -106,8 +132,30 @@ class RabbitMQConsumer:
                 print("  [ERRO] Não foi possível decodificar o corpo da mensagem JSON.")
             except Exception as e:
                 print(f"  [ERRO] Ocorreu um erro ao processar a mensagem: {e}")
+        elif self.env_name == "satcom":
+            try:
+                satcom_data = json.loads(message_body)
+                print("--- Dados Satcom (Kezpo) ---")
+                # Exemplo de como extrair alguns campos, ajuste conforme a estrutura real
+                position = satcom_data.get("position", {})
+                ts = position.get("ts")
+                lat = position.get("latitude")
+                lon = position.get("longitude")
+                speed = position.get("speed")
+
+                if ts:
+                    print(f"  Timestamp: {datetime.fromtimestamp(ts / 1000).strftime('%Y-%m-%d %H:%M:%S')}")
+                print(f"  Latitude: {lat}")
+                print(f"  Longitude: {lon}")
+                print(f"  Velocidade: {speed} km/h")
+                print(f"  JSON Completo: {json.dumps(satcom_data, indent=2)}")
+            except json.JSONDecodeError:
+                print("  [ERRO] Mensagem Satcom não é um JSON válido.")
+                print(f"  Corpo da Mensagem Bruta: {message_body}")
+            except Exception as e:
+                print(f"  [ERRO] Ocorreu um erro ao processar a mensagem Satcom: {e}")
         else:
-            print(f"  Mensagem do tipo {message_type} recebida, mas não processada por este script.")
+            print(f"  Mensagem do tipo {message_type} (ou ambiente {self.env_name}) recebida, mas não processada por este script.")
             print(f"  Corpo da Mensagem: {message_body}")
         
         # ACK - Confirma o recebimento depois de processar a msg 
@@ -164,13 +212,7 @@ def main():
     config = load_config()
 
     # Instancia o consumidor passando as configurações carregadas
-    consumer = RabbitMQConsumer(
-        host=config['SERVER_ADDRESS'],
-        port=config['SERVER_PORT'],
-        user=config['USER'],
-        password=config['PASSWORD'],
-        queue=config['QUEUE_NAME']
-    )
+    consumer = RabbitMQConsumer(config)
     consumer.start_consuming()
 
 if __name__ == '__main__':
